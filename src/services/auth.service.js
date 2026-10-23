@@ -11,13 +11,15 @@ const register = async ({ name, email, password, role, adminKey }) => {
 
   const passwordHash = await bcrypt.hash(password, 10);
 
-  // Code-12 bug: user can pass role directly in payload without adminKey verification
-  const user = await User.create({
-    name,
-    email,
-    passwordHash,
-    role: role || "student",
-  });
+  // BUG fixed: validate adminKey before allowing admin role assignment
+  let assignedRole = "student";
+  if (role === "admin") {
+    if (!adminKey || adminKey !== process.env.ADMIN_REGISTRATION_KEY) {
+      throw new Error("Invalid or missing admin registration key");
+    }
+    assignedRole = "admin";
+  }
+  const user = await User.create({ name, email, passwordHash, role: assignedRole });
 
   const token = generateToken({ id: user._id, role: user.role });
 
